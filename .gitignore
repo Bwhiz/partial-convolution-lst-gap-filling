@@ -1,6 +1,8 @@
 *.parquet
 *.zip
 *.nc
+*.pth
+*.joblib
 
 #notebooks
 data_matchups.ipynb
