@@ -1,0 +1,85 @@
+
+# area around cape town
+bbox_WSEN: [ 17.896010, -34.484990, 19.598891, -33.159334 ]
+# be sure to change the filters on stations if you change the bounding box
+
+modis_lst:
+  metadata:
+    source: https://planetarycomputer.microsoft.com/dataset/modis-11A1-061
+    doi: https://doi.org/10.5067/MODIS/MYD11A1.061
+  search:  # passed to pystac_client.Client.search(datetime, **kwargs)
+    collections: [ modis-11A1-061 ]
+    bbox: {{ bbox_WSEN }}  # will be filled in by bbox_WSEN defined at the top
+    query:
+      # filter based on item properties
+      platform:  # we only want Terra
+        eq: terra
+  stackstac:  # passed to stackstac.stack with items
+    epsg: 4326  # WGS84 lat/lon
+    resolution: 0.01  # ~1km
+    bounds_latlon: {{ bbox_WSEN }}
+    assets:
+      - LST_Day_1km
+      - Day_view_time
+      - Day_view_angl
+
+
+dem_cop90:
+  metadata:
+    doi: https://doi.org/10.5069/G9028PQB
+    source: https://planetarycomputer.microsoft.com/dataset/cop-dem-glo-90
+  search:
+    collections: [ cop-dem-glo-90 ]
+    bbox: {{ bbox_WSEN }}
+  stackstac:
+    # when we want to calculate the slope, we need to use a projection that is in metres
+    epsg: 22234  # UTM zone 34S - for cape town
+    resolution: 1000  # we're working in metres
+    bounds_latlon: {{ bbox_WSEN }}
+    assets:
+      - data
+
+
+stations:
+  # most of these are passed to dask.dataframe.read_parquet function
+  path: ../data/stations/station_data_parquet/*.parquet
+  columns:  # reduce the columns to only the ones we need
+    - Station_name
+    - Year
+    - Month
+    - Day
+    - Hour
+    - Minute
+    - Latitude
+    - Longitude
+    - temperature
+    - dew_point_temperature
+    - station_level_pressure
+    - precipitation
+    - wind_direction
+    - wind_speed
+    - wind_gust
+    - temperature_Quality_Code
+    - dew_point_temperature_Quality_Code
+    - station_level_pressure_Quality_Code
+    - wind_direction_Quality_Code
+    - wind_speed_Quality_Code
+    - wind_gust_Quality_Code
+  filters:  # filter start year, and the bounding box
+    # we have to manually set the Latitude and Longitude filters -
+    # make sure to change this if you change the bounding box
+    # we dont have to set lower left corner bounds as only ocean
+    - [Year, ">", 2015]
+    - [Latitude, "<", -33.159334]
+    - [Longitude, "<", 19.598891]
+  datetime_cols:  # passed to dask.dataframe.to_datetime(df[cols], errors='coerce')
+    - Year
+    - Month
+    - Day
+    - Hour
+    - Minute
+  index_cols:  # passed to dask.dataframe.set_index
+    # here, order matters - we set datetime first, so that
+    # dates are easy to index when matching with the MODIS data
+    - datetime
+    - Station_name
